@@ -192,7 +192,7 @@ class Exp_Long_Term_Forecast(Exp_Basic):
 
         model_optim = self._select_optimizer()
         criterion = self._select_criterion()
-        history = {'epoch': [], 'train_loss': [], 'vali_loss': [], 'test_loss': []}
+        history = {'epoch': [], 'train_loss': [], 'vali_loss': []}
 
         if self.args.lradj == 'TST':
             scheduler = lr_scheduler.OneCycleLR(optimizer=model_optim,
@@ -276,7 +276,6 @@ class Exp_Long_Term_Forecast(Exp_Basic):
             history['epoch'].append(epoch + 1)
             history['train_loss'].append(float(train_loss))
             history['vali_loss'].append(float(vali_loss))
-            history['test_loss'].append(float(test_loss))
 
             print("Epoch: {0}, Steps: {1} | Train Loss: {2:.7f} Vali Loss: {3:.7f} Test Loss: {4:.7f}".format(
                 epoch + 1, train_steps, train_loss, vali_loss, test_loss))

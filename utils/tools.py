@@ -101,7 +101,7 @@ def save_loss_history(history, csv_path):
 
 def save_learning_curve(history, image_path):
     plt.figure(figsize=(8, 5))
-    for key, label in [('train_loss', 'Train Loss'), ('vali_loss', 'Validation Loss'), ('test_loss', 'Test Loss')]:
+    for key, label in [('train_loss', 'Train Loss'), ('vali_loss', 'Validation Loss')]:
         if key in history and len(history[key]) > 0:
             plt.plot(history['epoch'], history[key], marker='o', linewidth=2, label=label)
     plt.xlabel('Epoch')

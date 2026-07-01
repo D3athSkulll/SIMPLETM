@@ -393,9 +393,11 @@ class Exp_Long_Term_Forecast(Exp_Basic):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        mae, mse, rmse, mape, mspe = metric(preds, trues)
-        print('mse:{}, mae:{}'.format(mse, mae))
+        mae, mse, rmse, mape, mspe, r2, evs, medae, maxerr, smape, wape = metric(preds,trues)
+        print('mse:{}, mae:{}, wape:{}'.format(mse, mae, wape))
         print('rmse:{}, mape:{}, mspe:{}'.format(rmse, mape, mspe))
+        print('r2:{}, evs:{}, medae:{}'.format(r2, evs, medae))
+        print('medae:{}, maxerr:{}, smape:{}'.format(medae, maxerr, smape))
         f = open('result_long_term_forecast.txt', 'a')
         f.write(setting + '  \n')
         if self.args.data == 'PEMS':

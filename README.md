@@ -1,1961 +1,610 @@
-# SimpleTM
-The repo is the official implementation for the paper: [[ICLR '25] SimpleTM: A Simple Baseline For Multivariate Time Series Forcasting](https://openreview.net/pdf?id=oANkBaVci5).
+# SimpleTM with Band Attention
 
+This repository contains an extension of [SimpleTM](https://github.com/thuml/SimpleTM) with a small **Band Attention** module for wavelet-based multivariate time-series forecasting.
 
-# Introduction
-We propose SimpleTM, a simple yet effective architecture that uniquely integrates classical signal processing ideas with a slightly modified attention mechanism. 
+The main idea is simple: **SimpleTM treats all wavelet bands equally, but not every frequency band is equally useful for every input window.** Band Attention learns which wavelet bands are more useful and adjusts their importance before the geometric-product attention block.
 
-<p align="center">
-<img src="./figures/Framework.png"  alt="" align=center />
-</p>
+The module was developed and evaluated as part of a B.Tech project on household electricity load forecasting.
 
-We show that even a single-layer configuration can effectively capture intricate dependencies in multivariate time-series data, while maintaining minimal model complexity and parameter requirements. This streamlined construction achieves a performance profile surpassing (or on par with) most existing baselines across nearly all publicly available benchmarks.
+---
 
-<!-- <p align="center">
-<img src="./figures/Long_term_forecast_results.jpg"  alt="" align=center />
-</p> -->
+## What is Band Attention?
 
-<table style="border-collapse: collapse; width: 100%;">
-  <caption style="text-align: left; font-weight: bold; padding: 8px;">
-    Table 6: Complete results of the long-term forecasting task, with an input length of 96 for all tasks. The reported metrics include the averaged Mean Squared Error (MSE) and Mean Absolute Error (MAE) across four prediction horizons, where lower values indicate better model performance.
-  </caption>
-  <thead>
-    <!-- First header row: model names -->
-    <tr style="border-bottom: 2px solid black;">
-      <!-- First two columns: Dataset, Horizon (rowspan=2) -->
-      <th style="padding: 4px;" rowspan="2">Dataset</th>
-      <th style="padding: 4px;" rowspan="2">Horizon</th>
-      <!-- Then 14 models, each spanning two columns (MSE, MAE) -->
-      <th style="padding: 4px;" colspan="2">SimpleTM (Ours)</th>
-      <th style="padding: 4px;" colspan="2">TimeMixer (2024)</th>
-      <th style="padding: 4px;" colspan="2">iTransformer (2024)</th>
-      <th style="padding: 4px;" colspan="2">CrossGNN (2024)</th>
-      <th style="padding: 4px;" colspan="2">RLinear (2023)</th>
-      <th style="padding: 4px;" colspan="2">PatchTST (2023)</th>
-      <th style="padding: 4px;" colspan="2">Crossformer (2023)</th>
-      <th style="padding: 4px;" colspan="2">TiDE (2023)</th>
-      <th style="padding: 4px;" colspan="2">TimesNet (2023)</th>
-      <th style="padding: 4px;" colspan="2">DLinear (2023)</th>
-      <th style="padding: 4px;" colspan="2">SCINet (2022)</th>
-      <th style="padding: 4px;" colspan="2">FEDformer (2022)</th>
-      <th style="padding: 4px;" colspan="2">Stationary (2022)</th>
-      <th style="padding: 4px;" colspan="2">Autoformer (2021)</th>
-    </tr>
-    <!-- Second header row: MSE / MAE labels -->
-    <tr style="border-bottom: 2px solid black;">
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-      <th style="padding: 4px;">MSE</th>
-      <th style="padding: 4px;">MAE</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- ================= ETTm1 ================= -->
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;" rowspan="5">ETTm1</td>
-      <td style="padding: 4px;">96</td>
-      <!-- SimpleTM (Ours): best (red + bold) -->
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.321</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.361</span>
-      </td>
-      <!-- TimeMixer: second best (blue + underline) -->
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.328</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.363</span>
-      </td>
-      <td style="padding: 4px;">0.334</td>
-      <td style="padding: 4px;">0.368</td>
-      <td style="padding: 4px;">0.335</td>
-      <td style="padding: 4px;">0.373</td>
-      <td style="padding: 4px;">0.355</td>
-      <td style="padding: 4px;">0.376</td>
-      <td style="padding: 4px;">0.329</td>
-      <td style="padding: 4px;">0.367</td>
-      <td style="padding: 4px;">0.404</td>
-      <td style="padding: 4px;">0.426</td>
-      <td style="padding: 4px;">0.364</td>
-      <td style="padding: 4px;">0.387</td>
-      <td style="padding: 4px;">0.338</td>
-      <td style="padding: 4px;">0.375</td>
-      <td style="padding: 4px;">0.345</td>
-      <td style="padding: 4px;">0.372</td>
-      <td style="padding: 4px;">0.418</td>
-      <td style="padding: 4px;">0.438</td>
-      <td style="padding: 4px;">0.379</td>
-      <td style="padding: 4px;">0.419</td>
-      <td style="padding: 4px;">0.386</td>
-      <td style="padding: 4px;">0.398</td>
-      <td style="padding: 4px;">0.505</td>
-      <td style="padding: 4px;">0.475</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">192</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.360</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.380</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.364</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.384</span>
-      </td>
-      <td style="padding: 4px;">0.377</td>
-      <td style="padding: 4px;">0.391</td>
-      <td style="padding: 4px;">0.372</td>
-      <td style="padding: 4px;">0.390</td>
-      <td style="padding: 4px;">0.391</td>
-      <td style="padding: 4px;">0.392</td>
-      <td style="padding: 4px;">0.367</td>
-      <td style="padding: 4px;">0.385</td>
-      <td style="padding: 4px;">0.450</td>
-      <td style="padding: 4px;">0.451</td>
-      <td style="padding: 4px;">0.398</td>
-      <td style="padding: 4px;">0.404</td>
-      <td style="padding: 4px;">0.374</td>
-      <td style="padding: 4px;">0.387</td>
-      <td style="padding: 4px;">0.380</td>
-      <td style="padding: 4px;">0.389</td>
-      <td style="padding: 4px;">0.439</td>
-      <td style="padding: 4px;">0.450</td>
-      <td style="padding: 4px;">0.426</td>
-      <td style="padding: 4px;">0.441</td>
-      <td style="padding: 4px;">0.459</td>
-      <td style="padding: 4px;">0.444</td>
-      <td style="padding: 4px;">0.553</td>
-      <td style="padding: 4px;">0.496</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">336</td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.390</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.404</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.390</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.404</span>
-      </td>
-      <td style="padding: 4px;">0.426</td>
-      <td style="padding: 4px;">0.420</td>
-      <td style="padding: 4px;">0.403</td>
-      <td style="padding: 4px;">0.411</td>
-      <td style="padding: 4px;">0.424</td>
-      <td style="padding: 4px;">0.415</td>
-      <td style="padding: 4px;">0.399</td>
-      <td style="padding: 4px;">0.410</td>
-      <td style="padding: 4px;">0.532</td>
-      <td style="padding: 4px;">0.515</td>
-      <td style="padding: 4px;">0.428</td>
-      <td style="padding: 4px;">0.425</td>
-      <td style="padding: 4px;">0.410</td>
-      <td style="padding: 4px;">0.411</td>
-      <td style="padding: 4px;">0.413</td>
-      <td style="padding: 4px;">0.413</td>
-      <td style="padding: 4px;">0.490</td>
-      <td style="padding: 4px;">0.485</td>
-      <td style="padding: 4px;">0.445</td>
-      <td style="padding: 4px;">0.459</td>
-      <td style="padding: 4px;">0.495</td>
-      <td style="padding: 4px;">0.464</td>
-      <td style="padding: 4px;">0.621</td>
-      <td style="padding: 4px;">0.537</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">720</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.454</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.438</span>
-      </td>
-      <td style="padding: 4px;">0.458</td>
-      <td style="padding: 4px;">0.445</td>
-      <td style="padding: 4px;">0.491</td>
-      <td style="padding: 4px;">0.459</td>
-      <td style="padding: 4px;">0.461</td>
-      <td style="padding: 4px;">0.442</td>
-      <td style="padding: 4px;">0.487</td>
-      <td style="padding: 4px;">0.450</td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.454</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.439</span>
-      </td>
-      <td style="padding: 4px;">0.666</td>
-      <td style="padding: 4px;">0.589</td>
-      <td style="padding: 4px;">0.487</td>
-      <td style="padding: 4px;">0.461</td>
-      <td style="padding: 4px;">0.478</td>
-      <td style="padding: 4px;">0.450</td>
-      <td style="padding: 4px;">0.474</td>
-      <td style="padding: 4px;">0.453</td>
-      <td style="padding: 4px;">0.595</td>
-      <td style="padding: 4px;">0.550</td>
-      <td style="padding: 4px;">0.543</td>
-      <td style="padding: 4px;">0.490</td>
-      <td style="padding: 4px;">0.585</td>
-      <td style="padding: 4px;">0.516</td>
-      <td style="padding: 4px;">0.671</td>
-      <td style="padding: 4px;">0.561</td>
-    </tr>
-    <!-- "Avg" row -->
-    <tr style="border-bottom: 2px solid black;">
-      <td style="padding: 4px;">Avg</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.381</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.396</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.385</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.399</span>
-      </td>
-      <td style="padding: 4px;">0.407</td>
-      <td style="padding: 4px;">0.410</td>
-      <td style="padding: 4px;">0.393</td>
-      <td style="padding: 4px;">0.404</td>
-      <td style="padding: 4px;">0.414</td>
-      <td style="padding: 4px;">0.407</td>
-      <td style="padding: 4px;">0.387</td>
-      <td style="padding: 4px;">0.400</td>
-      <td style="padding: 4px;">0.513</td>
-      <td style="padding: 4px;">0.496</td>
-      <td style="padding: 4px;">0.419</td>
-      <td style="padding: 4px;">0.419</td>
-      <td style="padding: 4px;">0.400</td>
-      <td style="padding: 4px;">0.406</td>
-      <td style="padding: 4px;">0.403</td>
-      <td style="padding: 4px;">0.407</td>
-      <td style="padding: 4px;">0.485</td>
-      <td style="padding: 4px;">0.481</td>
-      <td style="padding: 4px;">0.448</td>
-      <td style="padding: 4px;">0.452</td>
-      <td style="padding: 4px;">0.481</td>
-      <td style="padding: 4px;">0.456</td>
-      <td style="padding: 4px;">0.588</td>
-      <td style="padding: 4px;">0.517</td>
-    </tr>
-    <!-- ================= ETTm2 ================= -->
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;" rowspan="5">ETTm2</td>
-      <td style="padding: 4px;">96</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.173</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.257</span>
-      </td>
-      <td style="padding: 4px;">0.176</td>
-      <td style="padding: 4px;">0.259</td>
-      <td style="padding: 4px;">0.180</td>
-      <td style="padding: 4px;">0.264</td>
-      <td style="padding: 4px;">0.176</td>
-      <td style="padding: 4px;">0.266</td>
-      <td style="padding: 4px;">0.182</td>
-      <td style="padding: 4px;">0.265</td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.175</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.259</span>
-      </td>
-      <td style="padding: 4px;">0.287</td>
-      <td style="padding: 4px;">0.366</td>
-      <td style="padding: 4px;">0.207</td>
-      <td style="padding: 4px;">0.305</td>
-      <td style="padding: 4px;">0.187</td>
-      <td style="padding: 4px;">0.267</td>
-      <td style="padding: 4px;">0.193</td>
-      <td style="padding: 4px;">0.292</td>
-      <td style="padding: 4px;">0.286</td>
-      <td style="padding: 4px;">0.377</td>
-      <td style="padding: 4px;">0.203</td>
-      <td style="padding: 4px;">0.287</td>
-      <td style="padding: 4px;">0.192</td>
-      <td style="padding: 4px;">0.274</td>
-      <td style="padding: 4px;">0.255</td>
-      <td style="padding: 4px;">0.339</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">192</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.238</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.299</span>
-      </td>
-      <td style="padding: 4px;">0.242</td>
-      <td style="padding: 4px;">0.303</td>
-      <td style="padding: 4px;">0.250</td>
-      <td style="padding: 4px;">0.309</td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.240</span>
-      </td>
-      <td style="padding: 4px;">0.307</td>
-      <td style="padding: 4px;">0.246</td>
-      <td style="padding: 4px;">0.304</td>
-      <td style="padding: 4px;">0.241</td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.302</span>
-      </td>
-      <td style="padding: 4px;">0.414</td>
-      <td style="padding: 4px;">0.492</td>
-      <td style="padding: 4px;">0.290</td>
-      <td style="padding: 4px;">0.364</td>
-      <td style="padding: 4px;">0.249</td>
-      <td style="padding: 4px;">0.309</td>
-      <td style="padding: 4px;">0.284</td>
-      <td style="padding: 4px;">0.362</td>
-      <td style="padding: 4px;">0.399</td>
-      <td style="padding: 4px;">0.445</td>
-      <td style="padding: 4px;">0.269</td>
-      <td style="padding: 4px;">0.328</td>
-      <td style="padding: 4px;">0.280</td>
-      <td style="padding: 4px;">0.339</td>
-      <td style="padding: 4px;">0.281</td>
-      <td style="padding: 4px;">0.340</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">336</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.296</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.338</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.304</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.342</span>
-      </td>
-      <td style="padding: 4px;">0.311</td>
-      <td style="padding: 4px;">0.348</td>
-      <td style="padding: 4px;">0.304</td>
-      <td style="padding: 4px;">0.345</td>
-      <td style="padding: 4px;">0.307</td>
-      <td style="padding: 4px;">0.342</td>
-      <td style="padding: 4px;">0.305</td>
-      <td style="padding: 4px;">0.343</td>
-      <td style="padding: 4px;">0.597</td>
-      <td style="padding: 4px;">0.542</td>
-      <td style="padding: 4px;">0.377</td>
-      <td style="padding: 4px;">0.422</td>
-      <td style="padding: 4px;">0.321</td>
-      <td style="padding: 4px;">0.351</td>
-      <td style="padding: 4px;">0.369</td>
-      <td style="padding: 4px;">0.427</td>
-      <td style="padding: 4px;">0.637</td>
-      <td style="padding: 4px;">0.591</td>
-      <td style="padding: 4px;">0.325</td>
-      <td style="padding: 4px;">0.366</td>
-      <td style="padding: 4px;">0.334</td>
-      <td style="padding: 4px;">0.361</td>
-      <td style="padding: 4px;">0.339</td>
-      <td style="padding: 4px;">0.372</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 4px;">720</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.393</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.395</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.393</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.397</span>
-      </td>
-      <td style="padding: 4px;">0.412</td>
-      <td style="padding: 4px;">0.407</td>
-      <td style="padding: 4px;">0.406</td>
-      <td style="padding: 4px;">0.400</td>
-      <td style="padding: 4px;">0.407</td>
-      <td style="padding: 4px;">0.398</td>
-      <td style="padding: 4px;">0.402</td>
-      <td style="padding: 4px;">0.400</td>
-      <td style="padding: 4px;">1.730</td>
-      <td style="padding: 4px;">1.042</td>
-      <td style="padding: 4px;">0.558</td>
-      <td style="padding: 4px;">0.524</td>
-      <td style="padding: 4px;">0.408</td>
-      <td style="padding: 4px;">0.403</td>
-      <td style="padding: 4px;">0.554</td>
-      <td style="padding: 4px;">0.522</td>
-      <td style="padding: 4px;">0.960</td>
-      <td style="padding: 4px;">0.735</td>
-      <td style="padding: 4px;">0.421</td>
-      <td style="padding: 4px;">0.415</td>
-      <td style="padding: 4px;">0.417</td>
-      <td style="padding: 4px;">0.413</td>
-      <td style="padding: 4px;">0.433</td>
-      <td style="padding: 4px;">0.432</td>
-    </tr>
-    <tr style="border-bottom: 2px solid black;">
-      <td style="padding: 4px;">Avg</td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.275</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.322</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.278</span>
-      </td>
-      <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.325</span>
-      </td>
-      <td style="padding: 4px;">0.288</td>
-      <td style="padding: 4px;">0.332</td>
-      <td style="padding: 4px;">0.282</td>
-      <td style="padding: 4px;">0.330</td>
-      <td style="padding: 4px;">0.286</td>
-      <td style="padding: 4px;">0.327</td>
-      <td style="padding: 4px;">0.281</td>
-      <td style="padding: 4px;">0.326</td>
-      <td style="padding: 4px;">0.757</td>
-      <td style="padding: 4px;">0.610</td>
-      <td style="padding: 4px;">0.358</td>
-      <td style="padding: 4px;">0.404</td>
-      <td style="padding: 4px;">0.291</td>
-      <td style="padding: 4px;">0.333</td>
-      <td style="padding: 4px;">0.350</td>
-      <td style="padding: 4px;">0.401</td>
-      <td style="padding: 4px;">0.571</td>
-      <td style="padding: 4px;">0.537</td>
-      <td style="padding: 4px;">0.305</td>
-      <td style="padding: 4px;">0.349</td>
-      <td style="padding: 4px;">0.306</td>
-      <td style="padding: 4px;">0.347</td>
-      <td style="padding: 4px;">0.327</td>
-      <td style="padding: 4px;">0.371</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-    <!-- "rowspan=5" because we have 4 horizons + 1 "Avg" row total -->
-    <td style="padding: 4px;" rowspan="5">ETTh1</td>    
-    <!-- Horizon (96) -->
-    <td style="padding: 4px;">96</td>
-    <!-- SimpleTM (Ours): best (red + bold) MSE and MAE -->
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.366</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.392</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding: 4px;">0.381</td>
-    <td style="padding: 4px;">0.401</td>
-    <!-- iTransformer (2024) -->
-    <td style="padding: 4px;">0.386</td>
-    <td style="padding: 4px;">0.405</td>
-    <!-- CrossGNN (2024) -->
-    <td style="padding: 4px;">0.382</td>
-    <td style="padding: 4px;">0.398</td>
-    <!-- RLinear (2023) -->
-    <td style="padding: 4px;">0.386</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.395</span>
-    </td>
-    <!-- PatchTST (2023) -->
-    <td style="padding: 4px;">0.414</td>
-    <td style="padding: 4px;">0.419</td>
-    <!-- Crossformer (2023) -->
-    <td style="padding: 4px;">0.423</td>
-    <td style="padding: 4px;">0.448</td>
-    <!-- TiDE (2023) -->
-    <td style="padding: 4px;">0.479</td>
-    <td style="padding: 4px;">0.464</td>
-    <!-- TimesNet (2023) -->
-    <td style="padding: 4px;">0.384</td>
-    <td style="padding: 4px;">0.402</td>
-    <!-- DLinear (2023) -->
-    <td style="padding: 4px;">0.386</td>
-    <td style="padding: 4px;">0.400</td>
-    <!-- SCINet (2022) -->
-    <td style="padding: 4px;">0.654</td>
-    <td style="padding: 4px;">0.599</td>
-    <!-- FEDformer (2022) -->
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.376</span>
-    </td>
-    <td style="padding: 4px;">0.419</td>
-    <!-- Stationary (2022) -->
-    <td style="padding: 4px;">0.513</td>
-    <td style="padding: 4px;">0.491</td>
-    <!-- Autoformer (2021) -->
-    <td style="padding: 4px;">0.449</td>
-    <td style="padding: 4px;">0.459</td>
-    </tr>
-    <!-- ETTh1, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <!-- Horizon -->
-    <td style="padding: 4px;">192</td>
-    <!-- SimpleTM (Ours): second-best MSE (blue + underline), best MAE (red + bold) -->
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.422</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.421</span>
-    </td>
-    <td style="padding: 4px;">0.440</td>
-    <td style="padding: 4px;">0.433</td>
-    <td style="padding: 4px;">0.441</td>
-    <td style="padding: 4px;">0.436</td>
-    <td style="padding: 4px;">0.427</td>
-    <td style="padding: 4px;">0.425</td>
-    <td style="padding: 4px;">0.437</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.424</span>
-    </td>
-    <td style="padding: 4px;">0.460</td>
-    <td style="padding: 4px;">0.445</td>
-    <td style="padding: 4px;">0.471</td>
-    <td style="padding: 4px;">0.474</td>
-    <td style="padding: 4px;">0.525</td>
-    <td style="padding: 4px;">0.492</td>
-    <td style="padding: 4px;">0.436</td>
-    <td style="padding: 4px;">0.429</td>
-    <td style="padding: 4px;">0.437</td>
-    <td style="padding: 4px;">0.432</td>
-    <td style="padding: 4px;">0.719</td>
-    <td style="padding: 4px;">0.631</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.420</span>
-    </td>
-    <td style="padding: 4px;">0.448</td>
-    <td style="padding: 4px;">0.534</td>
-    <td style="padding: 4px;">0.504</td>
-    <td style="padding: 4px;">0.500</td>
-    <td style="padding: 4px;">0.482</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding: 4px;">336</td>
-    <!-- SimpleTM: best (red+bold) for both MSE/MAE -->
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.440</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.438</span>
-    </td>
-    <td style="padding: 4px;">0.501</td>
-    <td style="padding: 4px;">0.462</td>
-    <td style="padding: 4px;">0.487</td>
-    <td style="padding: 4px;">0.458</td>
-    <td style="padding: 4px;">0.465</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.445</span>
-    </td>
-    <td style="padding: 4px;">0.479</td>
-    <td style="padding: 4px;">0.446</td>
-    <td style="padding: 4px;">0.501</td>
-    <td style="padding: 4px;">0.466</td>
-    <td style="padding: 4px;">0.570</td>
-    <td style="padding: 4px;">0.546</td>
-    <td style="padding: 4px;">0.565</td>
-    <td style="padding: 4px;">0.515</td>
-    <td style="padding: 4px;">0.491</td>
-    <td style="padding: 4px;">0.469</td>
-    <td style="padding: 4px;">0.481</td>
-    <td style="padding: 4px;">0.459</td>
-    <td style="padding: 4px;">0.778</td>
-    <td style="padding: 4px;">0.659</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.459</span>
-    </td>
-    <td style="padding: 4px;">0.465</td>
-    <td style="padding: 4px;">0.588</td>
-    <td style="padding: 4px;">0.535</td>
-    <td style="padding: 4px;">0.521</td>
-    <td style="padding: 4px;">0.496</td>
-    </tr>
-    <!-- ETTh1, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding: 4px;">720</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.463</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.462</span>
-    </td>
-    <td style="padding: 4px;">0.501</td>
-    <td style="padding: 4px;">0.482</td>
-    <td style="padding: 4px;">0.503</td>
-    <td style="padding: 4px;">0.491</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.472</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.468</span>
-    </td>
-    <td style="padding: 4px;">0.481</td>
-    <td style="padding: 4px;">0.470</td>
-    <td style="padding: 4px;">0.500</td>
-    <td style="padding: 4px;">0.488</td>
-    <td style="padding: 4px;">0.653</td>
-    <td style="padding: 4px;">0.621</td>
-    <td style="padding: 4px;">0.594</td>
-    <td style="padding: 4px;">0.558</td>
-    <td style="padding: 4px;">0.521</td>
-    <td style="padding: 4px;">0.500</td>
-    <td style="padding: 4px;">0.519</td>
-    <td style="padding: 4px;">0.516</td>
-    <td style="padding: 4px;">0.836</td>
-    <td style="padding: 4px;">0.699</td>
-    <td style="padding: 4px;">0.506</td>
-    <td style="padding: 4px;">0.507</td>
-    <td style="padding: 4px;">0.643</td>
-    <td style="padding: 4px;">0.616</td>
-    <td style="padding: 4px;">0.514</td>
-    <td style="padding: 4px;">0.512</td>
-    </tr>
-    <!-- ETTh1, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding: 4px;">Avg</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.422</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.428</span>
-    </td>
-    <td style="padding: 4px;">0.458</td>
-    <td style="padding: 4px;">0.445</td>
-    <td style="padding: 4px;">0.454</td>
-    <td style="padding: 4px;">0.447</td>
-    <td style="padding: 4px;">0.437</td>
-    <td style="padding: 4px;">0.434</td>
-    <td style="padding: 4px;">0.446</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.434</span>
-    </td>
-    <td style="padding: 4px;">0.469</td>
-    <td style="padding: 4px;">0.454</td>
-    <td style="padding: 4px;">0.529</td>
-    <td style="padding: 4px;">0.522</td>
-    <td style="padding: 4px;">0.541</td>
-    <td style="padding: 4px;">0.507</td>
-    <td style="padding: 4px;">0.458</td>
-    <td style="padding: 4px;">0.450</td>
-    <td style="padding: 4px;">0.456</td>
-    <td style="padding: 4px;">0.452</td>
-    <td style="padding: 4px;">0.747</td>
-    <td style="padding: 4px;">0.647</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.440</span>
-    </td>
-    <td style="padding: 4px;">0.460</td>
-    <td style="padding: 4px;">0.570</td>
-    <td style="padding: 4px;">0.537</td>
-    <td style="padding: 4px;">0.496</td>
-    <td style="padding: 4px;">0.487</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-    <!-- "rowspan=5" because we have 4 horizons + 1 "Avg" row total -->
-    <td style="padding: 4px;" rowspan="5">ETTh2</td>  
-    <!-- Horizon (96) -->
-    <td style="padding: 4px;">96</td>
-    <!-- SimpleTM (Ours): best (red + bold) MSE and MAE -->
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.281</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.338</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding: 4px;">0.292</td>
-    <td style="padding: 4px;">0.343</td>
-    <!-- iTransformer (2024) -->
-    <td style="padding: 4px;">0.297</td>
-    <td style="padding: 4px;">0.349</td>
-    <!-- CrossGNN (2024) -->
-    <td style="padding: 4px;">0.309</td>
-    <td style="padding: 4px;">0.359</td>
-    <!-- RLinear (2023) -->
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.288</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.338</span>
-    </td>
-    <!-- PatchTST (2023) -->
-    <td style="padding: 4px;">0.302</td>
-    <td style="padding: 4px;">0.348</td>
-    <!-- Crossformer (2023) -->
-    <td style="padding: 4px;">0.745</td>
-    <td style="padding: 4px;">0.584</td>
-    <!-- TiDE (2023) -->
-    <td style="padding: 4px;">0.400</td>
-    <td style="padding: 4px;">0.440</td>
-    <!-- TimesNet (2023) -->
-    <td style="padding: 4px;">0.340</td>
-    <td style="padding: 4px;">0.374</td>
-    <!-- DLinear (2023) -->
-    <td style="padding: 4px;">0.333</td>
-    <td style="padding: 4px;">0.387</td>
-    <!-- SCINet (2022) -->
-    <td style="padding: 4px;">0.707</td>
-    <td style="padding: 4px;">0.621</td>
-    <!-- FEDformer (2022) -->
-    <td style="padding: 4px;">0.358</td>
-    <td style="padding: 4px;">0.397</td>
-    <!-- Stationary (2022) -->
-    <td style="padding: 4px;">0.476</td>
-    <td style="padding: 4px;">0.458</td>
-    <!-- Autoformer (2021) -->
-    <td style="padding: 4px;">0.346</td>
-    <td style="padding: 4px;">0.388</td>
-    </tr>
-    <!-- ETTh2, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding: 4px;">192</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.355</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.387</span>
-    </td>
-    <td style="padding: 4px;">0.374</td>
-    <td style="padding: 4px;">0.395</td>
-    <td style="padding: 4px;">0.380</td>
-    <td style="padding: 4px;">0.400</td>
-    <td style="padding: 4px;">0.390</td>
-    <td style="padding: 4px;">0.406</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.374</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.390</span>
-    </td>
-    <td style="padding: 4px;">0.388</td>
-    <td style="padding: 4px;">0.400</td>
-    <td style="padding: 4px;">0.877</td>
-    <td style="padding: 4px;">0.656</td>
-    <td style="padding: 4px;">0.528</td>
-    <td style="padding: 4px;">0.509</td>
-    <td style="padding: 4px;">0.402</td>
-    <td style="padding: 4px;">0.414</td>
-    <td style="padding: 4px;">0.477</td>
-    <td style="padding: 4px;">0.476</td>
-    <td style="padding: 4px;">0.860</td>
-    <td style="padding: 4px;">0.689</td>
-    <td style="padding: 4px;">0.429</td>
-    <td style="padding: 4px;">0.439</td>
-    <td style="padding: 4px;">0.512</td>
-    <td style="padding: 4px;">0.493</td>
-    <td style="padding: 4px;">0.456</td>
-    <td style="padding: 4px;">0.452</td>
-    </tr>
-    <!-- ETTh2, 336 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding: 4px;">336</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.365</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.401</span>
-    </td>
-    <td style="padding: 4px;">0.428</td>
-    <td style="padding: 4px;">0.433</td>
-    <td style="padding: 4px;">0.428</td>
-    <td style="padding: 4px;">0.432</td>
-    <td style="padding: 4px;">0.426</td>
-    <td style="padding: 4px;">0.444</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.415</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.426</span>
-    </td>
-    <td style="padding: 4px;">0.426</td>
-    <td style="padding: 4px;">0.433</td>
-    <td style="padding: 4px;">1.043</td>
-    <td style="padding: 4px;">0.731</td>
-    <td style="padding: 4px;">0.643</td>
-    <td style="padding: 4px;">0.571</td>
-    <td style="padding: 4px;">0.452</td>
-    <td style="padding: 4px;">0.452</td>
-    <td style="padding: 4px;">0.594</td>
-    <td style="padding: 4px;">0.541</td>
-    <td style="padding: 4px;">1.000</td>
-    <td style="padding: 4px;">0.744</td>
-    <td style="padding: 4px;">0.496</td>
-    <td style="padding: 4px;">0.487</td>
-    <td style="padding: 4px;">0.552</td>
-    <td style="padding: 4px;">0.551</td>
-    <td style="padding: 4px;">0.482</td>
-    <td style="padding: 4px;">0.486</td>
-    </tr>
-    <!-- ETTh2, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding: 4px;">720</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.413</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.436</span>
-    </td>
-    <td style="padding: 4px;">0.454</td>
-    <td style="padding: 4px;">0.458</td>
-    <td style="padding: 4px;">0.427</td>
-    <td style="padding: 4px;">0.445</td>
-    <td style="padding: 4px;">0.445</td>
-    <td style="padding: 4px;">0.444</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.420</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.440</span>
-    </td>
-    <td style="padding: 4px;">0.431</td>
-    <td style="padding: 4px;">0.446</td>
-    <td style="padding: 4px;">1.104</td>
-    <td style="padding: 4px;">0.763</td>
-    <td style="padding: 4px;">0.874</td>
-    <td style="padding: 4px;">0.679</td>
-    <td style="padding: 4px;">0.462</td>
-    <td style="padding: 4px;">0.468</td>
-    <td style="padding: 4px;">0.831</td>
-    <td style="padding: 4px;">0.657</td>
-    <td style="padding: 4px;">1.249</td>
-    <td style="padding: 4px;">0.838</td>
-    <td style="padding: 4px;">0.463</td>
-    <td style="padding: 4px;">0.474</td>
-    <td style="padding: 4px;">0.562</td>
-    <td style="padding: 4px;">0.560</td>
-    <td style="padding: 4px;">0.515</td>
-    <td style="padding: 4px;">0.511</td>
-    </tr>
-    <!-- ETTh2, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding: 4px;">Avg</td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.353</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="color: red; font-weight: bold;">0.391</span>
-    </td>
-    <td style="padding: 4px;">0.384</td>
-    <td style="padding: 4px;">0.407</td>
-    <td style="padding: 4px;">0.383</td>
-    <td style="padding: 4px;">0.407</td>
-    <td style="padding: 4px;">0.393</td>
-    <td style="padding: 4px;">0.413</td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.374</span>
-    </td>
-    <td style="padding: 4px;">
-        <span style="text-decoration: underline; color: blue;">0.398</span>
-    </td>
-    <td style="padding: 4px;">0.387</td>
-    <td style="padding: 4px;">0.407</td>
-    <td style="padding: 4px;">0.942</td>
-    <td style="padding: 4px;">0.684</td>
-    <td style="padding: 4px;">0.611</td>
-    <td style="padding: 4px;">0.550</td>
-    <td style="padding: 4px;">0.414</td>
-    <td style="padding: 4px;">0.427</td>
-    <td style="padding: 4px;">0.559</td>
-    <td style="padding: 4px;">0.515</td>
-    <td style="padding: 4px;">0.954</td>
-    <td style="padding: 4px;">0.723</td>
-    <td style="padding: 4px;">0.437</td>
-    <td style="padding: 4px;">0.449</td>
-    <td style="padding: 4px;">0.526</td>
-    <td style="padding: 4px;">0.516</td>
-    <td style="padding: 4px;">0.450</td>
-    <td style="padding: 4px;">0.459</td>
-    </tr>
-    <!-- ================= ECL ================= -->
-    <!-- ECL, 96 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;" rowspan="5">ECL</td>
-    <td style="padding:4px;">96</td>
-    <!-- SimpleTM (Ours): best (red + bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.141</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.235</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.153</td>
-    <td style="padding:4px;">0.244</td>
-    <!-- iTransformer (2024): second-best (blue+underline) -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.148</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.240</span>
-    </td>
-    <!-- CrossGNN (2024) -->
-    <td style="padding:4px;">0.173</td>
-    <td style="padding:4px;">0.275</td>
-    <!-- RLinear (2023) -->
-    <td style="padding:4px;">0.201</td>
-    <td style="padding:4px;">0.281</td>
-    <!-- PatchTST (2023) -->
-    <td style="padding:4px;">0.181</td>
-    <td style="padding:4px;">0.270</td>
-    <!-- Crossformer (2023) -->
-    <td style="padding:4px;">0.219</td>
-    <td style="padding:4px;">0.314</td>
-    <!-- TiDE (2023) -->
-    <td style="padding:4px;">0.237</td>
-    <td style="padding:4px;">0.329</td>
-    <!-- TimesNet (2023) -->
-    <td style="padding:4px;">0.168</td>
-    <td style="padding:4px;">0.272</td>
-    <!-- DLinear (2023) -->
-    <td style="padding:4px;">0.197</td>
-    <td style="padding:4px;">0.282</td>
-    <!-- SCINet (2022) -->
-    <td style="padding:4px;">0.247</td>
-    <td style="padding:4px;">0.345</td>
-    <!-- FEDformer (2022) -->
-    <td style="padding:4px;">0.193</td>
-    <td style="padding:4px;">0.308</td>
-    <!-- Stationary (2022) -->
-    <td style="padding:4px;">0.169</td>
-    <td style="padding:4px;">0.273</td>
-    <!-- Autoformer (2021) -->
-    <td style="padding:4px;">0.201</td>
-    <td style="padding:4px;">0.317</td>
-    </tr>
-    <!-- ECL, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">192</td>
-    <!-- SimpleTM (Ours): best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.151</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.247</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.166</td>
-    <td style="padding:4px;">0.256</td>
-    <!-- iTransformer (2024): second best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.162</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.253</span>
-    </td>
-    <td style="padding:4px;">0.195</td>
-    <td style="padding:4px;">0.288</td>
-    <td style="padding:4px;">0.201</td>
-    <td style="padding:4px;">0.283</td>
-    <td style="padding:4px;">0.188</td>
-    <td style="padding:4px;">0.274</td>
-    <td style="padding:4px;">0.231</td>
-    <td style="padding:4px;">0.322</td>
-    <td style="padding:4px;">0.236</td>
-    <td style="padding:4px;">0.330</td>
-    <td style="padding:4px;">0.184</td>
-    <td style="padding:4px;">0.289</td>
-    <td style="padding:4px;">0.196</td>
-    <td style="padding:4px;">0.285</td>
-    <td style="padding:4px;">0.257</td>
-    <td style="padding:4px;">0.355</td>
-    <td style="padding:4px;">0.201</td>
-    <td style="padding:4px;">0.315</td>
-    <td style="padding:4px;">0.182</td>
-    <td style="padding:4px;">0.286</td>
-    <td style="padding:4px;">0.222</td>
-    <td style="padding:4px;">0.334</td>
-    </tr>
-    <!-- ECL, 336 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">336</td>
-    <!-- SimpleTM: best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.173</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.267</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.184</td>
-    <td style="padding:4px;">0.275</td>
-    <!-- iTransformer (2024): second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.178</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.269</span>
-    </td>
-    <td style="padding:4px;">0.206</td>
-    <td style="padding:4px;">0.300</td>
-    <td style="padding:4px;">0.215</td>
-    <td style="padding:4px;">0.298</td>
-    <td style="padding:4px;">0.204</td>
-    <td style="padding:4px;">0.293</td>
-    <td style="padding:4px;">0.246</td>
-    <td style="padding:4px;">0.337</td>
-    <td style="padding:4px;">0.249</td>
-    <td style="padding:4px;">0.344</td>
-    <td style="padding:4px;">0.198</td>
-    <td style="padding:4px;">0.300</td>
-    <td style="padding:4px;">0.209</td>
-    <td style="padding:4px;">0.301</td>
-    <td style="padding:4px;">0.269</td>
-    <td style="padding:4px;">0.369</td>
-    <td style="padding:4px;">0.214</td>
-    <td style="padding:4px;">0.329</td>
-    <td style="padding:4px;">0.200</td>
-    <td style="padding:4px;">0.304</td>
-    <td style="padding:4px;">0.231</td>
-    <td style="padding:4px;">0.338</td>
-    </tr>
-    <!-- ECL, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">720</td>
-    <!-- SimpleTM: best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.201</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.293</span>
-    </td>
-    <!-- TimeMixer (2024): second-best MAE? (the snippet has 0.313 underlined) -->
-    <td style="padding:4px;">0.226</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.313</span>
-    </td>
-    <td style="padding:4px;">0.225</td>
-    <td style="padding:4px;">0.317</td>
-    <td style="padding:4px;">0.231</td>
-    <td style="padding:4px;">0.335</td>
-    <td style="padding:4px;">0.257</td>
-    <td style="padding:4px;">0.331</td>
-    <td style="padding:4px;">0.246</td>
-    <td style="padding:4px;">0.324</td>
-    <td style="padding:4px;">0.280</td>
-    <td style="padding:4px;">0.363</td>
-    <td style="padding:4px;">0.284</td>
-    <td style="padding:4px;">0.373</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.220</span>
-    </td>
-    <td style="padding:4px;">0.320</td>
-    <td style="padding:4px;">0.245</td>
-    <td style="padding:4px;">0.333</td>
-    <td style="padding:4px;">0.299</td>
-    <td style="padding:4px;">0.390</td>
-    <td style="padding:4px;">0.246</td>
-    <td style="padding:4px;">0.355</td>
-    <td style="padding:4px;">0.222</td>
-    <td style="padding:4px;">0.321</td>
-    <td style="padding:4px;">0.254</td>
-    <td style="padding:4px;">0.361</td>
-    </tr>
-    <!-- ECL, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding:4px;">Avg</td>
-    <!-- SimpleTM: best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.166</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.260</span>
-    </td>
-    <!-- TimeMixer (2024): second-best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.178</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.270</span>
-    </td>
-    <td style="padding:4px;">0.201</td>
-    <td style="padding:4px;">0.300</td>
-    <td style="padding:4px;">0.219</td>
-    <td style="padding:4px;">0.298</td>
-    <td style="padding:4px;">0.205</td>
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">0.244</td>
-    <td style="padding:4px;">0.334</td>
-    <td style="padding:4px;">0.251</td>
-    <td style="padding:4px;">0.344</td>
-    <td style="padding:4px;">0.192</td>
-    <td style="padding:4px;">0.295</td>
-    <td style="padding:4px;">0.212</td>
-    <td style="padding:4px;">0.300</td>
-    <td style="padding:4px;">0.268</td>
-    <td style="padding:4px;">0.365</td>
-    <td style="padding:4px;">0.214</td>
-    <td style="padding:4px;">0.327</td>
-    <td style="padding:4px;">0.193</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.227</td>
-    <td style="padding:4px;">0.338</td>
-    </tr>
-    <!-- ================= Weather ================= -->
-    <!-- Weather, 96 -->
-    <tr style="border-bottom: 1px solid black;">
-    <!-- Dataset label spans 5 rows -->
-    <td style="padding:4px;" rowspan="5">Weather</td>
-    <!-- Horizon -->
-    <td style="padding:4px;">96</td>
-    <!-- SimpleTM (Ours): MSE=0.162, MAE=best -->
-    <td style="padding:4px;">0.162</td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.207</span>
-    </td>
-    <!-- TimeMixer (2024): MSE=0.165, MAE=second-best -->
-    <td style="padding:4px;">0.165</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.212</span>
-    </td>
-    <!-- iTransformer (2024) -->
-    <td style="padding:4px;">0.174</td>
-    <td style="padding:4px;">0.214</td>
-    <!-- CrossGNN (2024): MSE=second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.159</span>
-    </td>
-    <td style="padding:4px;">0.218</td>
-    <!-- RLinear (2023) -->
-    <td style="padding:4px;">0.192</td>
-    <td style="padding:4px;">0.232</td>
-    <!-- PatchTST (2023) -->
-    <td style="padding:4px;">0.177</td>
-    <td style="padding:4px;">0.218</td>
-    <!-- Crossformer (2023): MSE=best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.158</span>
-    </td>
-    <td style="padding:4px;">0.230</td>
-    <!-- TiDE (2023) -->
-    <td style="padding:4px;">0.202</td>
-    <td style="padding:4px;">0.261</td>
-    <!-- TimesNet (2023) -->
-    <td style="padding:4px;">0.172</td>
-    <td style="padding:4px;">0.220</td>
-    <!-- DLinear (2023) -->
-    <td style="padding:4px;">0.196</td>
-    <td style="padding:4px;">0.255</td>
-    <!-- SCINet (2022) -->
-    <td style="padding:4px;">0.221</td>
-    <td style="padding:4px;">0.306</td>
-    <!-- FEDformer (2022) -->
-    <td style="padding:4px;">0.217</td>
-    <td style="padding:4px;">0.296</td>
-    <!-- Stationary (2022) -->
-    <td style="padding:4px;">0.173</td>
-    <td style="padding:4px;">0.223</td>
-    <!-- Autoformer (2021) -->
-    <td style="padding:4px;">0.266</td>
-    <td style="padding:4px;">0.336</td>
-    </tr>
-    <!-- Weather, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">192</td>
-    <!-- SimpleTM: MSE=second-best, MAE=best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.208</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.248</span>
-    </td>
-    <!-- TimeMixer (2024): MSE=0.209, MAE=second-best -->
-    <td style="padding:4px;">0.209</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.253</span>
-    </td>
-    <td style="padding:4px;">0.221</td>
-    <td style="padding:4px;">0.254</td>
-    <td style="padding:4px;">0.211</td>
-    <td style="padding:4px;">0.266</td>
-    <td style="padding:4px;">0.240</td>
-    <td style="padding:4px;">0.271</td>
-    <td style="padding:4px;">0.225</td>
-    <td style="padding:4px;">0.259</td>
-    <!-- Crossformer (2023): MSE=best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.206</span>
-    </td>
-    <td style="padding:4px;">0.277</td>
-    <td style="padding:4px;">0.242</td>
-    <td style="padding:4px;">0.298</td>
-    <td style="padding:4px;">0.219</td>
-    <td style="padding:4px;">0.261</td>
-    <td style="padding:4px;">0.237</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.261</td>
-    <td style="padding:4px;">0.340</td>
-    <td style="padding:4px;">0.276</td>
-    <td style="padding:4px;">0.336</td>
-    <td style="padding:4px;">0.245</td>
-    <td style="padding:4px;">0.285</td>
-    <td style="padding:4px;">0.307</td>
-    <td style="padding:4px;">0.367</td>
-    </tr>
-    <!-- Weather, 336 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">336</td>
-    <!-- SimpleTM: best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.263</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.290</span>
-    </td>
-    <!-- TimeMixer (2024): MSE=second-best, MAE=second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.264</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.293</span>
-    </td>
-    <td style="padding:4px;">0.278</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.267</td>
-    <td style="padding:4px;">0.310</td>
-    <td style="padding:4px;">0.292</td>
-    <td style="padding:4px;">0.307</td>
-    <td style="padding:4px;">0.278</td>
-    <td style="padding:4px;">0.297</td>
-    <td style="padding:4px;">0.272</td>
-    <td style="padding:4px;">0.335</td>
-    <td style="padding:4px;">0.287</td>
-    <td style="padding:4px;">0.335</td>
-    <td style="padding:4px;">0.280</td>
-    <td style="padding:4px;">0.306</td>
-    <td style="padding:4px;">0.283</td>
-    <td style="padding:4px;">0.335</td>
-    <td style="padding:4px;">0.309</td>
-    <td style="padding:4px;">0.378</td>
-    <td style="padding:4px;">0.339</td>
-    <td style="padding:4px;">0.380</td>
-    <td style="padding:4px;">0.321</td>
-    <td style="padding:4px;">0.338</td>
-    <td style="padding:4px;">0.359</td>
-    <td style="padding:4px;">0.395</td>
-    </tr>
-    <!-- Weather, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">720</td>
-    <!-- SimpleTM: best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.340</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.341</span>
-    </td>
-    <!-- TimeMixer (2024): second-best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.342</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.345</span>
-    </td>
-    <td style="padding:4px;">0.358</td>
-    <td style="padding:4px;">0.347</td>
-    <td style="padding:4px;">0.352</td>
-    <td style="padding:4px;">0.362</td>
-    <td style="padding:4px;">0.364</td>
-    <td style="padding:4px;">0.353</td>
-    <td style="padding:4px;">0.354</td>
-    <td style="padding:4px;">0.348</td>
-    <td style="padding:4px;">0.398</td>
-    <td style="padding:4px;">0.418</td>
-    <td style="padding:4px;">0.351</td>
-    <td style="padding:4px;">0.386</td>
-    <td style="padding:4px;">0.365</td>
-    <td style="padding:4px;">0.359</td>
-    <td style="padding:4px;">0.345</td>
-    <td style="padding:4px;">0.381</td>
-    <td style="padding:4px;">0.377</td>
-    <td style="padding:4px;">0.427</td>
-    <td style="padding:4px;">0.403</td>
-    <td style="padding:4px;">0.428</td>
-    <td style="padding:4px;">0.414</td>
-    <td style="padding:4px;">0.410</td>
-    <td style="padding:4px;">0.419</td>
-    <td style="padding:4px;">0.428</td>
-    </tr>
-    <!-- Weather, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding:4px;">Avg</td>
-    <!-- SimpleTM: best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.243</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.271</span>
-    </td>
-    <!-- TimeMixer (2024): second-best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.245</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.276</span>
-    </td>
-    <td style="padding:4px;">0.258</td>
-    <td style="padding:4px;">0.278</td>
-    <td style="padding:4px;">0.247</td>
-    <td style="padding:4px;">0.289</td>
-    <td style="padding:4px;">0.272</td>
-    <td style="padding:4px;">0.291</td>
-    <td style="padding:4px;">0.259</td>
-    <td style="padding:4px;">0.281</td>
-    <td style="padding:4px;">0.259</td>
-    <td style="padding:4px;">0.315</td>
-    <td style="padding:4px;">0.271</td>
-    <td style="padding:4px;">0.320</td>
-    <td style="padding:4px;">0.259</td>
-    <td style="padding:4px;">0.287</td>
-    <td style="padding:4px;">0.265</td>
-    <td style="padding:4px;">0.317</td>
-    <td style="padding:4px;">0.292</td>
-    <td style="padding:4px;">0.363</td>
-    <td style="padding:4px;">0.309</td>
-    <td style="padding:4px;">0.360</td>
-    <td style="padding:4px;">0.288</td>
-    <td style="padding:4px;">0.314</td>
-    <td style="padding:4px;">0.338</td>
-    <td style="padding:4px;">0.382</td>
-    </tr>
-    <!-- ================= Traffic ================= -->
-    <!-- Traffic, 96 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;" rowspan="5">Traffic</td>
-    <td style="padding:4px;">96</td>
-    <!-- SimpleTM: second-best MSE/MAE -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.410</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.274</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.464</td>
-    <td style="padding:4px;">0.289</td>
-    <!-- iTransformer (2024): best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.395</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.268</span>
-    </td>
-    <td style="padding:4px;">0.570</td>
-    <td style="padding:4px;">0.310</td>
-    <td style="padding:4px;">0.649</td>
-    <td style="padding:4px;">0.389</td>
-    <td style="padding:4px;">0.462</td>
-    <td style="padding:4px;">0.295</td>
-    <td style="padding:4px;">0.522</td>
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">0.805</td>
-    <td style="padding:4px;">0.493</td>
-    <td style="padding:4px;">0.593</td>
-    <td style="padding:4px;">0.321</td>
-    <td style="padding:4px;">0.650</td>
-    <td style="padding:4px;">0.396</td>
-    <td style="padding:4px;">0.788</td>
-    <td style="padding:4px;">0.499</td>
-    <td style="padding:4px;">0.587</td>
-    <td style="padding:4px;">0.366</td>
-    <td style="padding:4px;">0.612</td>
-    <td style="padding:4px;">0.338</td>
-    <td style="padding:4px;">0.613</td>
-    <td style="padding:4px;">0.388</td>
-    </tr>
-    <!-- Traffic, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">192</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.430</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.280</span>
-    </td>
-    <td style="padding:4px;">0.477</td>
-    <td style="padding:4px;">0.292</td>
-    <!-- iTransformer: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.417</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.276</span>
-    </td>
-    <td style="padding:4px;">0.577</td>
-    <td style="padding:4px;">0.321</td>
-    <td style="padding:4px;">0.601</td>
-    <td style="padding:4px;">0.366</td>
-    <td style="padding:4px;">0.466</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.530</td>
-    <td style="padding:4px;">0.293</td>
-    <td style="padding:4px;">0.756</td>
-    <td style="padding:4px;">0.474</td>
-    <td style="padding:4px;">0.617</td>
-    <td style="padding:4px;">0.336</td>
-    <td style="padding:4px;">0.598</td>
-    <td style="padding:4px;">0.370</td>
-    <td style="padding:4px;">0.789</td>
-    <td style="padding:4px;">0.505</td>
-    <td style="padding:4px;">0.604</td>
-    <td style="padding:4px;">0.373</td>
-    <td style="padding:4px;">0.613</td>
-    <td style="padding:4px;">0.340</td>
-    <td style="padding:4px;">0.616</td>
-    <td style="padding:4px;">0.382</td>
-    </tr>
-    <!-- Traffic, 336 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">336</td>
-    <!-- SimpleTM: second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.449</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.290</span>
-    </td>
-    <td style="padding:4px;">0.500</td>
-    <td style="padding:4px;">0.305</td>
-    <!-- iTransformer: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.433</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.283</span>
-    </td>
-    <td style="padding:4px;">0.588</td>
-    <td style="padding:4px;">0.324</td>
-    <td style="padding:4px;">0.609</td>
-    <td style="padding:4px;">0.369</td>
-    <td style="padding:4px;">0.482</td>
-    <td style="padding:4px;">0.304</td>
-    <td style="padding:4px;">0.558</td>
-    <td style="padding:4px;">0.305</td>
-    <td style="padding:4px;">0.762</td>
-    <td style="padding:4px;">0.477</td>
-    <td style="padding:4px;">0.629</td>
-    <td style="padding:4px;">0.336</td>
-    <td style="padding:4px;">0.605</td>
-    <td style="padding:4px;">0.373</td>
-    <td style="padding:4px;">0.797</td>
-    <td style="padding:4px;">0.508</td>
-    <td style="padding:4px;">0.621</td>
-    <td style="padding:4px;">0.383</td>
-    <td style="padding:4px;">0.618</td>
-    <td style="padding:4px;">0.328</td>
-    <td style="padding:4px;">0.622</td>
-    <td style="padding:4px;">0.337</td>
-    </tr>
-    <!-- Traffic, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">720</td>
-    <!-- SimpleTM: second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.486</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.309</span>
-    </td>
-    <td style="padding:4px;">0.548</td>
-    <td style="padding:4px;">0.313</td>
-    <!-- iTransformer: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.467</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.302</span>
-    </td>
-    <td style="padding:4px;">0.597</td>
-    <td style="padding:4px;">0.337</td>
-    <td style="padding:4px;">0.647</td>
-    <td style="padding:4px;">0.387</td>
-    <td style="padding:4px;">0.514</td>
-    <td style="padding:4px;">0.322</td>
-    <td style="padding:4px;">0.589</td>
-    <td style="padding:4px;">0.328</td>
-    <td style="padding:4px;">0.719</td>
-    <td style="padding:4px;">0.449</td>
-    <td style="padding:4px;">0.640</td>
-    <td style="padding:4px;">0.350</td>
-    <td style="padding:4px;">0.645</td>
-    <td style="padding:4px;">0.394</td>
-    <td style="padding:4px;">0.841</td>
-    <td style="padding:4px;">0.523</td>
-    <td style="padding:4px;">0.626</td>
-    <td style="padding:4px;">0.382</td>
-    <td style="padding:4px;">0.653</td>
-    <td style="padding:4px;">0.355</td>
-    <td style="padding:4px;">0.660</td>
-    <td style="padding:4px;">0.408</td>
-    </tr>
-    <!-- Traffic, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding:4px;">Avg</td>
-    <!-- SimpleTM: second-best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.444</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.289</span>
-    </td>
-    <td style="padding:4px;">0.497</td>
-    <td style="padding:4px;">0.300</td>
-    <!-- iTransformer: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.428</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.282</span>
-    </td>
-    <td style="padding:4px;">0.583</td>
-    <td style="padding:4px;">0.323</td>
-    <td style="padding:4px;">0.626</td>
-    <td style="padding:4px;">0.378</td>
-    <td style="padding:4px;">0.481</td>
-    <td style="padding:4px;">0.304</td>
-    <td style="padding:4px;">0.550</td>
-    <td style="padding:4px;">0.304</td>
-    <td style="padding:4px;">0.760</td>
-    <td style="padding:4px;">0.473</td>
-    <td style="padding:4px;">0.620</td>
-    <td style="padding:4px;">0.336</td>
-    <td style="padding:4px;">0.625</td>
-    <td style="padding:4px;">0.383</td>
-    <td style="padding:4px;">0.804</td>
-    <td style="padding:4px;">0.509</td>
-    <td style="padding:4px;">0.610</td>
-    <td style="padding:4px;">0.376</td>
-    <td style="padding:4px;">0.624</td>
-    <td style="padding:4px;">0.340</td>
-    <td style="padding:4px;">0.628</td>
-    <td style="padding:4px;">0.379</td>
-    </tr>
-    <!-- ================= SolarEnergy ================= -->
-    <!-- Solar, 96 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;" rowspan="5">Solar-Energy</td>
-    <td style="padding:4px;">96</td>
-    <!-- SimpleTM (Ours): best (red + bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.163</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.232</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.215</td>
-    <td style="padding:4px;">0.294</td>
-    <!-- iTransformer (2024): second best (blue+underline) -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.203</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.237</span>
-    </td>
-    <!-- CrossGNN (2024) -->
-    <td style="padding:4px;">0.222</td>
-    <td style="padding:4px;">0.301</td>
-    <!-- RLinear (2023) -->
-    <td style="padding:4px;">0.322</td>
-    <td style="padding:4px;">0.339</td>
-    <!-- PatchTST (2023) -->
-    <td style="padding:4px;">0.234</td>
-    <td style="padding:4px;">0.286</td>
-    <!-- Crossformer (2023) -->
-    <td style="padding:4px;">0.310</td>
-    <td style="padding:4px;">0.331</td>
-    <!-- TiDE (2023) -->
-    <td style="padding:4px;">0.312</td>
-    <td style="padding:4px;">0.399</td>
-    <!-- TimesNet (2023) -->
-    <td style="padding:4px;">0.250</td>
-    <td style="padding:4px;">0.292</td>
-    <!-- DLinear (2023) -->
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">0.378</td>
-    <!-- SCINet (2022) -->
-    <td style="padding:4px;">0.237</td>
-    <td style="padding:4px;">0.344</td>
-    <!-- FEDformer (2022) -->
-    <td style="padding:4px;">0.242</td>
-    <td style="padding:4px;">0.342</td>
-    <!-- Stationary (2022) -->
-    <td style="padding:4px;">0.215</td>
-    <td style="padding:4px;">0.249</td>
-    <!-- Autoformer (2021) -->
-    <td style="padding:4px;">0.884</td>
-    <td style="padding:4px;">0.711</td>
-    </tr>
-    <!-- Solar, 192 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">192</td>
-    <!-- SimpleTM: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.182</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.247</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.237</td>
-    <td style="padding:4px;">0.275</td>
-    <!-- iTransformer (2024): second best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.233</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.261</span>
-    </td>
-    <td style="padding:4px;">0.246</td>
-    <td style="padding:4px;">0.307</td>
-    <td style="padding:4px;">0.359</td>
-    <td style="padding:4px;">0.356</td>
-    <td style="padding:4px;">0.267</td>
-    <td style="padding:4px;">0.310</td>
-    <td style="padding:4px;">0.734</td>
-    <td style="padding:4px;">0.725</td>
-    <td style="padding:4px;">0.339</td>
-    <td style="padding:4px;">0.416</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.318</td>
-    <td style="padding:4px;">0.320</td>
-    <td style="padding:4px;">0.398</td>
-    <td style="padding:4px;">0.280</td>
-    <td style="padding:4px;">0.380</td>
-    <td style="padding:4px;">0.285</td>
-    <td style="padding:4px;">0.380</td>
-    <td style="padding:4px;">0.254</td>
-    <td style="padding:4px;">0.272</td>
-    <td style="padding:4px;">0.834</td>
-    <td style="padding:4px;">0.692</td>
-    </tr>
-    <!-- Solar, 336 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">336</td>
-    <!-- SimpleTM: best (red+bold) -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.193</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.257</span>
-    </td>
-    <!-- TimeMixer (2024) -->
-    <td style="padding:4px;">0.252</td>
-    <td style="padding:4px;">0.298</td>
-    <!-- iTransformer (2024): second best -->
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.248</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.273</span>
-    </td>
-    <td style="padding:4px;">0.263</td>
-    <td style="padding:4px;">0.324</td>
-    <td style="padding:4px;">0.397</td>
-    <td style="padding:4px;">0.369</td>
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">0.315</td>
-    <td style="padding:4px;">0.750</td>
-    <td style="padding:4px;">0.735</td>
-    <td style="padding:4px;">0.368</td>
-    <td style="padding:4px;">0.430</td>
-    <td style="padding:4px;">0.319</td>
-    <td style="padding:4px;">0.330</td>
-    <td style="padding:4px;">0.353</td>
-    <td style="padding:4px;">0.415</td>
-    <td style="padding:4px;">0.304</td>
-    <td style="padding:4px;">0.389</td>
-    <td style="padding:4px;">0.282</td>
-    <td style="padding:4px;">0.376</td>
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">0.296</td>
-    <td style="padding:4px;">0.941</td>
-    <td style="padding:4px;">0.723</td>
-    </tr>
-    <!-- Solar, 720 -->
-    <tr style="border-bottom: 1px solid black;">
-    <td style="padding:4px;">720</td>
-    <!-- SimpleTM: best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.199</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.252</span>
-    </td>
-    <!-- TimeMixer (2024): second-best -->
-    <td style="padding:4px;">0.244</td>
-    <td style="padding:4px;">0.293</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.249</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.275</span>
-    </td>
-    <td style="padding:4px;">0.265</td>
-    <td style="padding:4px;">0.318</td>
-    <td style="padding:4px;">0.397</td>
-    <td style="padding:4px;">0.356</td>
-    <td style="padding:4px;">0.289</td>
-    <td style="padding:4px;">0.317</td>
-    <td style="padding:4px;">0.769</td>
-    <td style="padding:4px;">0.765</td>
-    <td style="padding:4px;">0.370</td>
-    <td style="padding:4px;">0.425</td>
-    <td style="padding:4px;">0.338</td>
-    <td style="padding:4px;">0.337</td>
-    <td style="padding:4px;">0.356</td>
-    <td style="padding:4px;">0.413</td>
-    <td style="padding:4px;">0.308</td>
-    <td style="padding:4px;">0.388</td>
-    <td style="padding:4px;">0.357</td>
-    <td style="padding:4px;">0.427</td>
-    <td style="padding:4px;">0.285</td>
-    <td style="padding:4px;">0.295</td>
-    <td style="padding:4px;">0.882</td>
-    <td style="padding:4px;">0.717</td>
-    </tr>
-    <!-- Solar, Avg -->
-    <tr style="border-bottom: 2px solid black;">
-    <td style="padding:4px;">Avg</td>
-    <!-- SimpleTM: best -->
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.184</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="color: red; font-weight: bold;">0.247</span>
-    </td>
-    <!-- TimeMixer (2024): second-best -->
-    <td style="padding:4px;">0.237</td>
-    <td style="padding:4px;">0.290</td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.233</span>
-    </td>
-    <td style="padding:4px;">
-        <span style="text-decoration: underline; color: blue;">0.262</span>
-    </td>
-    <td style="padding:4px;">0.249</td>
-    <td style="padding:4px;">0.313</td>
-    <td style="padding:4px;">0.369</td>
-    <td style="padding:4px;">0.356</td>
-    <td style="padding:4px;">0.270</td>
-    <td style="padding:4px;">0.307</td>
-    <td style="padding:4px;">0.641</td>
-    <td style="padding:4px;">0.639</td>
-    <td style="padding:4px;">0.347</td>
-    <td style="padding:4px;">0.417</td>
-    <td style="padding:4px;">0.301</td>
-    <td style="padding:4px;">0.319</td>
-    <td style="padding:4px;">0.330</td>
-    <td style="padding:4px;">0.401</td>
-    <td style="padding:4px;">0.282</td>
-    <td style="padding:4px;">0.375</td>
-    <td style="padding:4px;">0.291</td>
-    <td style="padding:4px;">0.381</td>
-    <td style="padding:4px;">0.261</td>
-    <td style="padding:4px;">0.381</td>
-    <td style="padding:4px;">0.885</td>
-    <td style="padding:4px;">0.711</td>
-    </tr>
-  </tbody>
-</table>
+SimpleTM first converts each variable into a token and applies a **Stationary Wavelet Transform (SWT)**. This gives multiple frequency bands, from the smoother approximation component to finer detail components.
 
+In the original SimpleTM pipeline, these bands are passed to attention without an explicit learned importance weighting.
 
-# Get Started
+Band Attention adds a lightweight step between the SWT and the Q/K/V projections:
 
-## 1. Download the Data
+```text
+Input
+  |
+  v
+Linear Projection
+  |
+  v
+SWT
+  |
+  v
+Band Attention
+  |
+  v
+Geometric Product Attention
+  |
+  v
+ISWT
+  |
+  v
+FFN + LayerNorm
+  |
+  v
+Forecast
+```
 
-All datasets have been preprocessed and are ready for use. You can obtain them from their original sources:
+The module:
 
-- **ETT**: [https://github.com/zhouhaoyi/ETDataset/tree/main](https://github.com/zhouhaoyi/ETDataset/tree/main)
-- **Traffic, Electricity, Weather**: [https://github.com/thuml/Autoformer](https://github.com/thuml/Autoformer?tab=readme-ov-file)
-- **Solar**: [https://github.com/laiguokun/LSTNet](https://github.com/laiguokun/LSTNet)
-- **PEMS**: [https://github.com/cure-lab/SCINet](https://github.com/cure-lab/SCINet?tab=readme-ov-file)
+1. Pools each wavelet band into a compact descriptor.
+2. Passes all band descriptors through a small MLP.
+3. Converts the output into band weights.
+4. Rescales the original wavelet coefficients.
+5. Sends the reweighted coefficients to SimpleTM attention.
 
-For convenience, we provide a comprehensive package containing all required datasets, available for download from [Google Drive](https://drive.google.com/file/d/1hTpUrhe1yEIGa9mCiGxM5rDyzlYKAnyx/view?usp=sharing). You can place it under the folder [./dataset](./dataset/).
+The important part is that the weights are **input-dependent**. A window containing mostly smooth consumption can receive a different band weighting from a window containing a sudden appliance-level spike.
 
-## 2. Setup Your Environment
+---
 
-Choose one of the following methods to set up your environment:
+## Why add Band Attention?
 
-### Option A: Anaconda
-Create and activate a Python environment using the provided configuration file [environment.yml](./environment.yml):
+Household electricity load contains information at multiple time scales.
+
+- Low-frequency bands capture the smoother daily load pattern.
+- Higher-frequency bands can contain appliance switching and short-term changes.
+- Some of the fine-scale information becomes less useful as the forecasting horizon increases.
+
+Using the same weighting for every band makes SimpleTM use a fixed trade-off for every window.
+
+Band Attention tries to make this trade-off adaptive.
+
+It is also intentionally small. The current implementation adds only about **32 parameters per layer**, without changing the tensor shape or replacing the original SimpleTM attention mechanism.
+
+---
+
+## Main Results
+
+The module was evaluated on **Load House 2** using a multivariate-to-univariate setup with an input length of 96 and prediction lengths of:
+
+`4, 32, 48, 96, 192`
+
+The comparison included the original SimpleTM branch, Band Attention, other SimpleTM variants, and external forecasting baselines.
+
+### SimpleTM vs Band Attention
+
+| Model | Avg. MSE | Avg. MAE |
+|---|---:|---:|
+| Original SimpleTM | 1.041 | 0.468 |
+| **Band Attention** | **1.023** | **0.461** |
+
+Band Attention gives:
+
+- **1.73% lower average MSE**
+- **1.50% lower average MAE**
+- Best average MAE among the models in the comparison
+- Best/shared-best average MSE with the cross-product attention variant
+
+The improvement is more visible at shorter horizons.
+
+### Short Horizon
+
+At the 4-step / 1-hour prediction horizon:
+
+| Model | MSE | MAE |
+|---|---:|---:|
+| Original SimpleTM | 0.903 | 0.448 |
+| **Band Attention** | **0.890** | **0.426** |
+
+This corresponds to:
+
+- **1.44% reduction in MSE**
+- **4.91% reduction in MAE**
+
+The MAE improvement is the largest single improvement observed for Band Attention in the experiment.
+
+### Long Horizon
+
+At the 192-step / 48-hour horizon:
+
+| Model | MSE | MAE |
+|---|---:|---:|
+| Original SimpleTM | 1.089 | 0.475 |
+| Band Attention | 1.084 | 0.475 |
+
+The improvement is almost gone at this horizon.
+
+This is expected. Fine-grained wavelet information is more useful for short-term forecasting, while much of that information becomes noise when predicting far into the future.
+
+---
+
+## Comparison with Other Variants
+
+We also tested a few other modifications to understand whether simply reweighting wavelet bands was enough.
+
+| Model | Avg. MSE | Avg. MAE |
+|---|---:|---:|
+| Original SimpleTM | 1.041 | 0.468 |
+| Wavelets (Direct Weighting) | 1.054 | 0.473 |
+| Wavelets (Fourier Weighting) | 1.061 | 0.472 |
+| Cross Attention | 1.023 | 0.462 |
+| **Band Attention** | **1.023** | **0.461** |
+
+The fixed wavelet weighting methods were actually worse than the original SimpleTM model.
+
+This suggests that the improvement is not simply because the wavelet bands were reweighted. The useful part is that **Band Attention learns the weighting from the input**.
+
+Cross-product attention gives a very similar MSE, but Band Attention achieves slightly better average MAE while adding very little parameter overhead.
+
+---
+
+## How it works
+
+Let the SWT output be:
+
+```text
+C ∈ R^(B × N × (m+1) × D)
+```
+
+where:
+
+- `B` = batch size
+- `N` = number of variables
+- `m+1` = number of wavelet bands
+- `D` = feature dimension
+
+### 1. Squeeze
+
+Each band is reduced to a scalar descriptor.
+
+```text
+Wavelet coefficients
+        |
+        v
+ Global pooling
+        |
+        v
+One descriptor per band
+```
+
+### 2. Excite
+
+The descriptors are passed through a small two-layer MLP:
+
+```text
+Band descriptors
+      |
+      v
+ Linear
+      |
+     GELU
+      |
+   Linear
+      |
+      v
+ Band scores
+```
+
+### 3. Normalize
+
+The scores are converted into weights.
+
+The current experiments use **Softmax**:
+
+```text
+α = Softmax(scores)
+```
+
+This makes the bands compete with each other for importance.
+
+### 4. Rescale
+
+The learned weights are broadcast back to the original coefficient tensor:
+
+```text
+C' = α ⊙ C
+```
+
+The resulting coefficients are then passed to the existing SimpleTM Q/K/V projections.
+
+---
+
+## Implementation
+
+The main implementation is located in:
+
+```text
+layers/SWTAttention_Family.py
+```
+
+The changes are intentionally small.
+
+A new `BandAttention` module is added, and the existing `GeomAttentionLayer` calls it after SWT decomposition and before the Q/K/V projections.
+
+The implementation also includes debug hooks for inspecting the learned band weights during experiments.
+
+When Band Attention is disabled, the forward path remains the same as the original SimpleTM implementation.
+
+---
+
+## Configuration
+
+The main Band Attention settings used in the experiments are:
+
+```text
+Wavelet        : db1
+SWT depth      : 3
+Number of bands: 4
+Hidden size    : 4
+Activation     : Softmax
+Lookback       : 96
+d_model        : 256
+d_ff           : 1024
+Encoder layers : 1
+Batch size     : 256
+Learning rate  : 0.01
+```
+
+For a 3-level SWT:
+
+```text
+m = 3
+
+Number of bands = m + 1 = 4
+```
+
+The four bands represent different frequency resolutions of the input.
+
+---
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone <your-repository-url>
+cd SIMPLETM
+```
+
+### 2. Create the environment
+
+If the repository contains the original SimpleTM environment file:
 
 ```bash
 conda env create -f environment.yml -n SimpleTM
 conda activate SimpleTM
 ```
 
-### Option B: Docker
-If you prefer Docker, build an image using the provided [Dockerfile](./Dockerfile):
+You can also install the required Python packages manually if needed.
 
-```bash
-docker build --tag simpletm:latest .
+The experiments use:
+
+- Python 3
+- PyTorch
+- PyWavelets
+- NumPy
+- Pandas
+
+---
+
+## Dataset
+
+The experiments in this project use household electricity load data from **Load House 2**.
+
+The preprocessing used for the experiments was:
+
+```text
+Raw 15-minute readings
+        |
+        v
+Missing-value interpolation
+        |
+        v
+Hourly aggregation
+        |
+        v
+Standard scaling
+        |
+        v
+70% Train / 10% Validation / 20% Test
+        |
+        v
+Sliding windows
 ```
 
+The Band Attention experiments use a 96-step input window.
 
-## 3. Train the Model
+The model is evaluated in the **multivariate-to-univariate (M → S)** setting, where multiple variables are provided as input while the target load channel is used for evaluation.
 
-Experiment scripts for various benchmarks are provided in the [`scripts`](./scripts) directory. You can reproduce experiment results as follows:
+---
 
-```bash
-bash ./scripts/multivariate_forecasting/ETT/SimpleTM_h1.sh       # ETTh1
-bash ./scripts/multivariate_forecasting/ECL/SimpleTM.sh          # Electricity
-bash ./scripts/long_term_forecast/SolarEnergy/SimpleTM.sh        # Solar-Energy
-bash ./scripts/long_term_forecast/Weather/SimpleTM.sh            # Weather
-bash ./scripts/short_term_forecast/PEMS/SimpleTM_03.sh           # PEMS03
-```
+## Running an Experiment
 
-### Docker Users
-If you're using Docker, run the scripts with the following command structure (example for ETTh1):
+The project follows the original SimpleTM training interface.
+
+A typical run looks like:
 
 ```bash
-docker run --gpus all -it --rm --ipc=host \
-    --user $(id -u):$(id -g) \
-    -v "$(pwd)":/scratch --workdir /scratch -e HOME=/scratch \
-    simpletm:latest \
-    bash scripts/multivariate_forecasting/ETT/SimpleTM_h1.sh
+python run.py \
+  --is_training 1 \
+  --root_path "./dataset/" \
+  --data_path "Load House 2.csv" \
+  --model_id Load_House_2 \
+  --model SimpleTM \
+  --data custom \
+  --features M \
+  --target OT \
+  --freq h \
+  --seq_len 96 \
+  --pred_len 96 \
+  --enc_in 4 \
+  --dec_in 4 \
+  --c_out 1 \
+  --d_model 256 \
+  --d_ff 1024 \
+  --e_layers 1 \
+  --n_heads 8 \
+  --batch_size 256 \
+  --learning_rate 0.01 \
+  --train_epochs 10
 ```
 
+The exact arguments should be adjusted according to the dataset and experiment configuration in the repository.
 
-# Model Efficiency
-To provide an efficiency comparison, we evaluated our model against two of the most competitive baselines: the transformer-based iTransformer and linear-based TimeMixer. Our experimental setup used a consistent batch size of 256 across all models and measured four key metrics: total trainable parameters, inference time, GPU memory footprint, and peak memory usage during the backward pass. Results for all baseline models were compiled using PyTorch. 
+---
 
-Please note that our default experimental configuration does not employ compilation optimizations. To speed up, enable the --compile flag in the scripts.
+## Original SimpleTM vs Band Attention
 
-<!-- <p align="center">
-<img src="./figures/Efficiency.jpg"  alt="" align=center />
-</p> -->
+The main difference is only in the wavelet processing stage.
 
-<table style="border-collapse: collapse; width: 100%;">
-  <caption style="text-align: left; font-weight: bold; padding: 8px;">
-    Table 13: Comparison of model performance and resource utilization across different datasets. Metrics include Mean Squared Error (MSE), total parameter count, inference time (seconds), GPU memory footprint (MB), and peak memory usage (MB).
-  </caption>
-  <thead>
-    <tr style="border-bottom: 2px solid black;">
-      <th style="padding: 8px; text-align: left;">Dataset</th>
-      <th style="padding: 8px; text-align: left;">Model</th>
-      <th style="padding: 8px; text-align: left;">MSE</th>
-      <th style="padding: 8px; text-align: left;">Total Params</th>
-      <th style="padding: 8px; text-align: left;">Inference Time (s)</th>
-      <th style="padding: 8px; text-align: left;">GPU Mem Footprint (MB)</th>
-      <th style="padding: 8px; text-align: left;">Peak Mem (MB)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <!-- Weather group -->
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 8px;" rowspan="3">Weather</td>
-      <td style="padding: 8px;">SimpleTM</td>
-      <td style="padding: 8px;">0.162</td>
-      <td style="padding: 8px;">13,472</td>
-      <td style="padding: 8px;">0.0132</td>
-      <td style="padding: 8px;">994</td>
-      <td style="padding: 8px;">181.75</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 8px;">TimeMixer</td>
-      <td style="padding: 8px;">0.164</td>
-      <td style="padding: 8px;">104,433</td>
-      <td style="padding: 8px;">0.0453</td>
-      <td style="padding: 8px;">2,954</td>
-      <td style="padding: 8px;">2,281.38</td>
-    </tr>
-    <tr style="border-bottom: 2px solid black;">
-      <td style="padding: 8px;">iTransformer</td>
-      <td style="padding: 8px;">0.176</td>
-      <td style="padding: 8px;">4,833,888</td>
-      <td style="padding: 8px;">0.0222</td>
-      <td style="padding: 8px;">1,596</td>
-      <td style="padding: 8px;">847.62</td>
-    </tr>
-    <!-- Solar group -->
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 8px;" rowspan="3">Solar</td>
-      <td style="padding: 8px;">SimpleTM</td>
-      <td style="padding: 8px;">0.163</td>
-      <td style="padding: 8px;">166,304</td>
-      <td style="padding: 8px;">0.0455</td>
-      <td style="padding: 8px;">2,048</td>
-      <td style="padding: 8px;">1,181.56</td>
-    </tr>
-    <tr style="border-bottom: 1px solid black;">
-      <td style="padding: 8px;">TimeMixer</td>
-      <td style="padding: 8px;">0.215</td>
-      <td style="padding: 8px;">13,009,079</td>
-      <td style="padding: 8px;">0.2644</td>
-      <td style="padding: 8px;">7,576</td>
-      <td style="padding: 8px;">6,632.40</td>
-    </tr>
-    <tr>
-      <td style="padding: 8px;">iTransformer</td>
-      <td style="padding: 8px;">0.203</td>
-      <td style="padding: 8px;">3,255,904</td>
-      <td style="padding: 8px;">0.0663</td>
-      <td style="padding: 8px;">4,022</td>
-      <td style="padding: 8px;">2,776.50</td>
-    </tr>
-  </tbody>
-</table>
+### Original SimpleTM
 
+```text
+SWT
+ |
+ +-- Band 1 ----\
+ +-- Band 2 -----\
+ +-- Band 3 ------> Geometric Attention
+ +-- Band 4 -----/
+ |
+ISWT
+```
 
-# Acknowledgement
+All bands enter the attention pipeline without an explicit learned band-importance module.
 
-We appreciate the following GitHub repos a lot for their valuable code and efforts.
-- Time-Series-Library (https://github.com/thuml/Time-Series-Library)
-- iTransformer (https://github.com/thuml/iTransformer)
-- TimeMixer (https://github.com/kwuking/TimeMixer)
-- Autoformer (https://github.com/thuml/Autoformer)
+### SimpleTM + Band Attention
 
+```text
+SWT
+ |
+ +-- Band 1 --\
+ +-- Band 2 ---\
+ +-- Band 3 ----> Band Attention --> Geometric Attention
+ +-- Band 4 ---/
+ |
+ISWT
+```
 
-# Citation
-If you find this repo helpful, please cite our paper. 
+The rest of SimpleTM is kept unchanged.
 
-```bibtex
-@inproceedings{
-chen2025simpletm,
-title={Simple{TM}: A Simple Baseline for Multivariate Time Series Forecasting},
-author={Hui Chen and Viet Luong and Lopamudra Mukherjee and Vikas Singh},
-booktitle={The Thirteenth International Conference on Learning Representations},
-year={2025},
-url={https://openreview.net/forum?id=oANkBaVci5}
-}
-```#   S I M P L E T M  
- 
+This makes the module relatively easy to add or remove from the model.
+
+---
+
+## What improved?
+
+The experiments show a few useful observations.
+
+### 1. Better short-term forecasting
+
+The largest gain appears at the shortest prediction horizon.
+
+At 4 steps:
+
+```text
+MSE : 0.903 → 0.890
+MAE : 0.448 → 0.426
+```
+
+The MAE reduction is approximately **4.9%**.
+
+### 2. Best average MAE
+
+Across the five tested horizons:
+
+```text
+Original SimpleTM : 0.468
+Band Attention    : 0.461
+```
+
+Band Attention achieves the lowest average MAE among the non-degenerate forecasting models in the comparison.
+
+### 3. Very small parameter overhead
+
+The module adds roughly:
+
+```text
+~32 parameters / layer
+```
+
+So the improvement does not come from significantly increasing the model size.
+
+### 4. Adaptive instead of fixed weighting
+
+Fixed wavelet weighting performed worse than the original SimpleTM model.
+
+This supports the main idea behind the module:
+
+> The useful frequency bands depend on the current input window and forecasting horizon.
+
+---
+
+## Important Notes
+
+The current implementation is a research prototype, and there are a few things that can still be improved.
+
+### Band pooling
+
+The current squeeze operation uses the average of signed coefficients.
+
+Wavelet detail coefficients are often close to zero mean, so averaging them can hide useful information.
+
+A better version could use band energy or absolute magnitude instead:
+
+```text
+g_i = sqrt(mean(C_i²))
+```
+
+or:
+
+```text
+g_i = mean(|C_i|)
+```
+
+### Softmax scaling
+
+With four bands, a uniform Softmax gives an average weight of:
+
+```text
+1 / 4 = 0.25
+```
+
+Since the module is applied to Q, K and V, this can reduce the scale of the attention computation more than intended.
+
+A future version could initialize the module as an exact identity or apply the weighting in a more controlled way.
+
+### Q/K/V weighting
+
+The current implementation can generate separate band weights for queries, keys and values.
+
+This means the three streams may receive different band weightings.
+
+A possible improvement is to calculate one shared band-weight vector and use it consistently across Q/K/V.
+
+These limitations are documented in the project report and are useful directions for future experiments.
+
+---
+
+## Comparison with Other Models
+
+Band Attention was not evaluated in isolation. The Load House 2 experiments also include other SimpleTM variants and several standard multivariate forecasting models.
+
+The comparison uses the same **M → S setting**, with a 96-step input window and prediction horizons of 4, 32, 48, 96 and 192 steps.
+
+### Overall comparison
+
+The table below shows the average MSE and MAE across the five prediction horizons.
+
+| Model | Avg. MSE ↓ | Avg. MAE ↓ | 1h MSE ↓ | 1h MAE ↓ |
+|---|---:|---:|---:|---:|
+| **Band Attention** | **1.0234** | **0.4614** | **0.8902** | **0.4257** |
+| Cross Attention | 1.0232 | 0.4616 | 0.8920 | 0.4363 |
+| Original SimpleTM | 1.0412 | 0.4681 | 0.9032 | 0.4484 |
+| Autoformer | 1.0536 | 0.4902 | 0.9630 | 0.4871 |
+| Direct Wavelet Weighting | 1.0536 | 0.4733 | 0.9332 | 0.4703 |
+| Fourier Wavelet Weighting | 1.0610 | 0.4718 | 0.9457 | 0.4738 |
+| iTransformer | 1.0683 | 0.4672 | 1.0683 | 0.4672 |
+| FEDformer | 1.6114 | 0.7795 | 1.5581 | 0.7718 |
+
+Among the models that produced meaningful, horizon-dependent forecasts, **Band Attention has the best average MAE** and is tied very closely with Cross Attention on average MSE.
+
+Compared with the original SimpleTM:
+
+- Band Attention reduces average MSE by about **1.7%**.
+- Band Attention reduces average MAE by about **1.4%**.
+- At 1 hour, MSE improves by about **1.4%**.
+- At 1 hour, MAE improves by about **5.1%**.
+- Band Attention also gives a lower average RMSE, MAPE, MedAE, Maximum Error and SMAPE than the original branch.
+
+### Comparison at the shortest horizon
+
+The 1-hour results show the clearest advantage of the proposed module:
+
+| Model | MSE | MAE | MAPE | R² | EVS |
+|---|---:|---:|---:|---:|---:|
+| **Band Attention** | **0.8902** | **0.4257** | **0.8448** | **0.2131** | **0.2200** |
+| Cross Attention | 0.8920 | 0.4363 | 0.8902 | 0.2114 | 0.2139 |
+| Original SimpleTM | 0.9032 | 0.4484 | 0.9215 | 0.0510 | 0.0550 |
+| iTransformer | 1.0683 | 0.4672 | 0.9337 | 0.0520 | 0.0579 |
+| Autoformer | 0.9630 | 0.4871 | — | — | — |
+| Direct Wavelet Weighting | 0.9332 | 0.4703 | 0.9497 | 0.1751 | 0.1752 |
+| Fourier Wavelet Weighting | 0.9457 | 0.4738 | 0.9257 | 0.1640 | 0.1648 |
+| FEDformer | 1.5581 | 0.7718 | — | — | — |
+
+At this horizon, Band Attention gives the **lowest MSE and MAE among the compared non-degenerate models**. It also gives the highest R² and EVS in this comparison.
+
+### What the comparison tells us
+
+The comparison is useful because it shows that the improvement is not simply caused by changing the wavelet family or adding another attention block.
+
+**Fixed wavelet weighting does not help.** The direct and Fourier weighting variants have worse average MSE than the original SimpleTM. This supports the idea that the important part of Band Attention is the **input-dependent weighting**, rather than wavelet reweighting by itself.
+
+**Cross Attention is a strong alternative.** It reaches almost the same average MSE as Band Attention, but Band Attention has slightly better average MAE and substantially lower 1-hour MAE.
+
+**iTransformer and Autoformer are competitive in some individual metrics**, but their overall MSE/MAE is higher than Band Attention in this experiment.
+
+**FEDformer performs substantially worse on this particular Load House 2 configuration.** This does not mean FEDformer is generally worse; it only describes the result obtained under the configuration used in this project.
+
+**TimeMixer needs to be treated separately.** The Excel results report exactly the same MSE/MAE values at every horizon (`0.462 / 0.247`). A forecast whose error remains identical from 1 hour to 48 hours is suspicious and was identified in the report as a degenerate run. Therefore, its apparent numerical advantage should **not** be treated as evidence that TimeMixer outperforms the other models. The run should be repeated before drawing a conclusion.
+
+## Results Summary
+
+The final experiments were compared against the original SimpleTM M→S branch on Load House 2. The Excel result logs contain MSE, MAE, RMSE, MAPE, MSPE, R², EVS, MedAE, Maximum Error and SMAPE.
+
+| Metric | Original SimpleTM | Band Attention | Relative change |
+|---|---:|---:|---:|
+| Average MSE | 1.0412 | **1.0234** | **1.71% ↓** |
+| Average MAE | 0.4681 | **0.4614** | **1.42% ↓** |
+| Average RMSE | 1.0143* | **1.0110*** | **0.33% ↓** |
+| Average MAPE | 0.9545 | **0.9254** | **3.04% ↓** |
+| Average MSPE | 284.41 | 332.93 | 17.06% ↑ |
+| Average R² | 0.0510 | **0.0940** | **84.32% ↑** |
+| Average EVS | 0.0550 | **0.0977** | **77.77% ↑** |
+| Average MedAE | 0.2576 | **0.2508** | **2.66% ↓** |
+| Average Maximum Error | 14.6982 | **14.6393** | **0.40% ↓** |
+| Average SMAPE | 1.2213 | **1.1786** | **3.49% ↓** |
+
+The average values above are calculated across the five tested horizons: 1 h, 8 h, 12 h, 24 h and 48 h. For metrics where lower is better, a downward percentage is an improvement; for R² and EVS, an upward percentage is an improvement.
+
+The most useful improvements are therefore not limited to MSE and MAE. Band Attention also improves **MAPE, MedAE, Maximum Error and SMAPE**, while the explained-variance metrics show a large relative increase. The one clear regression is **MSPE**, which becomes worse because this metric strongly amplifies percentage errors around small true load values.
+
+### Horizon-wise improvements
+
+The short-horizon results are where Band Attention is most effective.
+
+| Horizon | MSE ↓ | MAE ↓ | MAPE ↓ | R² ↑ | EVS ↑ | MedAE ↓ | SMAPE ↓ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 h | **1.44%** | **5.06%** | **8.33%** | **318.0%** | **300.1%** | **12.93%** | **12.97%** |
+| 8 h | **2.14%** | **0.80%** | **2.19%** | **64.94%** | **57.86%** | **1.27%** | **2.42%** |
+| 12 h | **3.15%** | **2.74%** | **3.60%** | **30.38%** | **28.30%** | **1.66%** | **1.97%** |
+| 24 h | **1.26%** | 1.22% ↑ | ~0.03% ↑ | **23.51%** | **17.40%** | 1.28% ↑ | **0.35%** |
+| 48 h | **0.52%** | 0.10% ↑ | **1.32%** | 15.25% ↓ | 14.83% ↓ | 1.31% ↑ | 0.26% ↑ |
+
+This makes the behaviour of the module clearer: **Band Attention mainly helps while short-term frequency information is still predictive.** The MSE improvement remains positive at every horizon, but the gains in MAE and explained variance become less consistent at 24–48 hours.
+
+At 1 hour, the improvement is particularly strong: MAE falls from **0.4484 to 0.4257**, MAPE falls from **0.9215 to 0.8448**, MedAE falls from **0.2576 to 0.2243**, and SMAPE falls from **1.2213 to 1.0628**. R² increases from **0.0510 to 0.2131**, while EVS increases from **0.0550 to 0.2200**.
+
+At 48 hours, MSE still improves slightly (**1.0895 → 1.0838**), but MAE is effectively unchanged (**0.4746 → 0.4750**) and R²/EVS are slightly lower. This agrees with the main observation in the report that the benefit of learned band weighting fades at long horizons.
+
+> **Note:** The Excel sheet contains an apparent RMSE entry error for the original 12-hour result (`0.041532`). Since RMSE should be the square root of MSE, the README uses the RMSE values consistently with the reported MSE values rather than treating that single spreadsheet cell as a valid metric. The original report also presents the long-horizon behaviour qualitatively rather than relying on that anomalous cell.
+
+---
+
+## Project Report
+
+A detailed explanation of the architecture, methodology, experiments, comparisons and future improvements is available in the project report.
+The report also contains plots comparing MSE, MAE, RMSE, MAPE, MSPE, R², EVS, MedAE, Maximum Error and SMAPE across prediction horizons.
+
+---
+
+## Acknowledgements
+
+This work was carried out as part of a B.Tech project at **ABV-IIITM Gwalior** under the guidance of **Dr. Anshul**.
+
+We also thank the authors of SimpleTM for making the original implementation publicly available, which made this extension and comparison possible.
